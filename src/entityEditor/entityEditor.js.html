@@ -1,14 +1,29 @@
 <script>
 
-function onSuccess(cellValue) {
-    var d = document.getElementById('output')
-    d.innerHTML = cellValue
-    makeRequest()
-}
+var autoUpdateEnabled = true
+var requestingNow = false
 
 function makeRequest() {
-    google.script.run.withSuccessHandler(onSuccess).getSelected()
+    requestingNow = true
+    google.script.run.withSuccessHandler(function(cellValue) {
+        requestingNow = false
+
+        var d = document.getElementById('output')
+        d.innerHTML = cellValue
+        if (autoUpdateEnabled) {
+            makeRequest()
+        }    
+    }).getSelected()
 }
 
-makeRequest() 
+function toggleAutoUpdate(value) {
+    autoUpdateEnabled = value
+    if (autoUpdateEnabled) {
+        if (!requestingNow) {
+            makeRequest()
+        }
+    }
+}
+
+makeRequest()     
 </script>

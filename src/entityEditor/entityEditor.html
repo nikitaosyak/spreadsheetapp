@@ -5,10 +5,16 @@
 </head>
 
 <body>
+    <?!= include('entityEditor.js'); ?>
+
     <div>hello</div>
     <div id="output">output here</div>
 
-    <div id="settings"></div>
+    <div id="settings">
+        <input type="checkbox" 
+               class="horizontal_input" 
+               onchange="toggleAutoUpdate(this.checked)" 
+               checked>auto-update</input>
+    </div>
     
-    <?!= include('entityEditor.js'); ?>
 </body>

@@ -20,6 +20,13 @@ function onEdit(e) {
 
 function getSelected() {
     //  var s = sheet()
-    sheet().log(SpreadsheetApp.getActive().getActiveCell().getValue())
-    return SpreadsheetApp.getActive().getActiveCell().getValue()
+    // sheet().log(SpreadsheetApp.getActive().getActiveCell().getValue())
+    var cell = SpreadsheetApp.getActive().getActiveCell()
+    var data = {
+        parent: cell.getRow(),
+        value: cell.getValue(),
+        document: cell.getNote()
+    }
+    sheet().log(JSON.stringify(data))
+    return data
 }
