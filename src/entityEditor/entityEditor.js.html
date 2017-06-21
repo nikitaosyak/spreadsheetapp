@@ -1,0 +1,14 @@
+<script>
+
+function onSuccess(cellValue) {
+    var d = document.getElementById('output')
+    d.innerHTML = cellValue
+    makeRequest()
+}
+
+function makeRequest() {
+    google.script.run.withSuccessHandler(onSuccess).getSelected()
+}
+
+makeRequest() 
+</script>
