@@ -10,23 +10,32 @@ function onEdit(e) {
 
 }
 
-// function doGet() {
-//     return HtmlService.createTemplateFromFile('entityEditor')
-//         .evaluate()
-//         .setSandboxMode(HtmlService.SandboxMode.IFRAME)
-//         .setTitle('Editor')
-//         .setWidth(350)
-// }
-
 function getSelected() {
-    //  var s = sheet()
-    // sheet().log(SpreadsheetApp.getActive().getActiveCell().getValue())
-    var cell = SpreadsheetApp.getActive().getActiveCell()
-    var data = {
-        parent: cell.getRow(),
-        value: cell.getValue(),
-        document: cell.getNote()
+    var sheet = SpreadsheetApp.getActive()
+    var cell = sheet.getActiveCell()
+    var resultData
+    
+    var row = cell.getRow(), col = cell.getColumn()
+    
+    if (col === 1) {
+        resultData = {'result': 'error', 'reason': 'WRONG FIELD'}
+    } else if (row === 1) {
+        resultData = {
+            result: 'ok',
+            type: 'class',
+            value: cell.getValue(),
+            document: cell.getNote()
+        }
+    } else {
+        var classCell = sheet.getRange(1, col)
+        resultData = {
+            result: 'ok',
+            type: 'entity',
+            class: classCell.getValue(),
+            template: classCell.getNote(),
+            value: cell.getValue(),
+            document: cell.getNote()
+        }    
     }
-    sheet().log(JSON.stringify(data))
-    return data
+    return resultData
 }

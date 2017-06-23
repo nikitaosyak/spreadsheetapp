@@ -5,11 +5,11 @@ var requestingNow = false
 
 function makeRequest() {
     requestingNow = true
-    google.script.run.withSuccessHandler(function(cellValue) {
+    google.script.run.withSuccessHandler(function(responce) {
         requestingNow = false
 
         var d = document.getElementById('output')
-        d.innerHTML = cellValue
+        d.innerHTML = responce
         if (autoUpdateEnabled) {
             makeRequest()
         }    

@@ -11,7 +11,7 @@ function toggleServiceColumn() {
 }
 
 function showEntityEditor() {
-    var html = HtmlService.createTemplateFromFile('entityEditor')
+    var html = HtmlService.createTemplateFromFile('editor')
         .evaluate()
         .setSandboxMode(HtmlService.SandboxMode.IFRAME)
         .setTitle('Editor')
@@ -61,7 +61,7 @@ function sheet() {
         set: function(key, value) {
             _meta.current[key] = value
             _meta.cell.setValue(JSON.stringify(_meta.current))
-            _version.setValue(_meta.current['version'])
+            _version.setValue(_meta.current.version)
         }
     }
 
@@ -105,11 +105,15 @@ function sheet() {
 
             // append entityEditor
             showEntityEditor()
-
-            checkEntityColumns()
         },
         log: function(value) {
-            _log.setValue(_log.getValue() + value + '\n')
+            var currentLog = _log.getValue()
+            var logArray = currentLog.split('\n')
+            if (logArray.length > 30) {
+                logArray.pop()
+            }
+            logArray.unshift(value)
+            _log.setValue(logArray.join('\n'))
         }
 
     }
