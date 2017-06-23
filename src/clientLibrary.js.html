@@ -1,0 +1,81 @@
+<script>
+
+function createElement(tag, cssClass, parent, style, id) {
+    const el = document.createElement(tag)
+
+    if (id != null && id !== undefined) {
+        el.id = id
+    }
+
+    if (parent !== null && parent !== undefined) {
+        parent.appendChild(el)
+    }
+
+    if (style !== null && style !== undefined) {
+        for (let k in style) {
+            el.style[k] = style[k]
+        }
+    }
+
+    if (cssClass !== null && cssClass !== undefined) {
+        el.className = cssClass
+    }
+
+    return el
+}
+
+function layoutElementsHorizontally(parent, elements) {
+    const div = createElement('div', 'horizontal_div', parent)
+    for (let i = 0; i < elements.length; i++) {
+        div.appendChild(elements[i])
+    }
+}
+
+function removeAllChildren(element) {
+    while (element.firstChild) {
+        element.removeChild(element.firstChild)
+    }
+}
+
+function createButtonElement(caption, onclick, cssClass, parent, style, id) {
+    const btn = createElement('input', cssClass, parent, style, id)
+    btn.setAttribute('type', 'button')
+    btn.setAttribute('value', caption)
+
+    if (onclick !== null && onclick !== undefined) {
+        btn.addEventListener('click', onclick)    
+    }
+    return btn
+}
+
+function createInputElement(value, cssClass, parent, style, id) {
+    const input = createElement('input', cssClass, parent, style, id)
+    input.setAttribute('type', 'input')
+    input.setAttribute('value', value)
+    return input
+}
+
+function createCheckBox(caption, parent, onclick) {
+    const label = createElement('label')
+    label.setAttribute('for', caption)
+    label.innerHTML = caption
+    
+    const checkBox = createElement('input',)
+    checkBox.setAttribute('type', 'checkbox')
+    checkBox.setAttribute('name', caption)
+
+    if (onclick !== null && onclick !== undefined) {
+        checkBox.addEventListener('click', onclick)
+    }
+    
+    layoutElementsHorizontally(parent, [checkBox, label])
+    return checkBox
+}
+
+function createPElement(text, cssClass, parent, style, id) {
+    const p = createElement('p', cssClass, parent, style, id)
+    p.innerHTML = text
+    return p
+}
+
+</script>

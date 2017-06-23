@@ -1,29 +1,150 @@
 <script>
 
-var autoUpdateEnabled = true
-var requestingNow = false
+let canUpdateSelection = true           // locked by running UI callbacks in editor form
+let autoUpdateEnabled = true            // toggle auto update of cell selection
+let selectionRequestRunning = false     // is cell selection update request running atm
+let selectionRequestCallbackQueue = []  // queue of UI callbacks in the editor form
+let currentLocation = null              // last available row:col of the selection
+
+let templateImmutables = ['id', 'parents', 'children', 'subjects']
+
+function drawPropertyList(output, form, properties, location) {
+
+}
+
+function drawTemplateCreation(output, form, location) {
+    const requestTemplateCreation = function(location, id, children, parents, special) {
+        console.log('will create template ' + id + ' at ' + location.col)
+        google.script.run.withSuccessHandler(function() {
+            currentLocation = null
+            canUpdateSelection = true
+            makeRequest()
+        }).createEntityTemplate(location, id, children, parents, special)    
+    }
+
+    output.innerHTML = 'no entity template. create?'
+                
+    let idCaption = createPElement(null, 'template id', null, 'horizontal_element')
+    let idInput = createInputElement('', 'horizontal_element')
+    layoutElementsHorizontally(form, [idCaption, idInput])
+
+    let childrenBox, parentBox, specialBox
+    
+    childrenBox = createCheckBox('have children', form, function() {
+        if (childrenBox.checked) specialBox.checked = false
+    })
+    parentBox = createCheckBox('have parents', form, function() {
+        if (parentBox.checked) specialBox.checked = false
+    })
+    specialBox = createCheckBox('is special', form, function() {
+        if (specialBox.checked) childrenBox.checked = parentBox.checked = false
+    })
+
+    let createBtn = createButtonElement('create', function() {
+        if (!parentBox.checked && !childrenBox.checked && !specialBox.checked) {
+            output.innerHTML = 'cannot create entity with no relations'
+            return
+        } 
+        if (idInput.value.length < 4) {
+            output.innerHTML = 'template name is too short'
+            return
+        }
+
+        output.innerHTML = 'creating entity template..'
+        selectionRequestCallbackQueue.push({
+            f: requestTemplateCreation, 
+            args: [
+                location, 
+                idInput.value, 
+                childrenBox.checked, 
+                parentBox.checked, 
+                specialBox.checked
+            ]
+        })
+    }, 'vertical_element', form, {'margin-top': '10px'})
+}
+
+function route(res) {
+    const title = document.getElementById('title')
+    const output = document.getElementById('output')
+    const form = document.getElementById('form')
+
+    var newLocation = false
+    if (currentLocation === null) {
+        newLocation = true
+        currentLocation = {row: res.location.row, col: res.location.col}
+    } else {
+        if (currentLocation.row !== res.location.row ||
+            currentLocation.col !== res.location.col) {
+            newLocation = true
+            currentLocation = {row: res.location.row, col: res.location.col}
+        }
+    }
+
+    if (res.result === 'error') {
+        title.innerHTML = 'ERROR'
+        output.innerHTML = res.reason
+        form.innerHTML = ""
+    } else if (res.result === 'ok') {
+        title.innerHTML = res.type + ' at [' + currentLocation.row + ':' + currentLocation.col + ']'
+
+        if (!newLocation) return
+        output.innerHTML = ''
+        removeAllChildren(form)
+
+        if (res.type === 'entityTemplate') {
+            if (res.value.length === 0 || res.document.length === 0) {
+                drawTemplateCreation(output, form, res.location)
+            } else {
+                output.innerHTML = res.type + ' ' + res.value
+                drawPropertyList(output, form, res.location, JSON.parse(res.document))
+            }
+        } else if (res.type === 'entity') {
+            if (res.template.length === 0) {
+                output.innerHTML = "There is no template for this entity."
+            } else {
+                output.innerHTML = "Entity editor will be here"
+            }
+        }
+    }
+}
 
 function makeRequest() {
-    requestingNow = true
-    google.script.run.withSuccessHandler(function(responce) {
-        requestingNow = false
+    if (!canUpdateSelection) return
 
-        var d = document.getElementById('output')
-        d.innerHTML = responce
-        if (autoUpdateEnabled) {
-            makeRequest()
-        }    
+    selectionRequestRunning = true
+    google.script.run.withSuccessHandler(function(res) {
+        selectionRequestRunning = false
+
+        let canProceed = true
+        if (selectionRequestCallbackQueue.length > 0) {
+            console.log('update selection: stopped by UI callback! current queue len: ' + selectionRequestCallbackQueue.length)
+            canProceed = false
+            canUpdateSelection = false
+            let cb = selectionRequestCallbackQueue[0]
+            selectionRequestCallbackQueue.shift()
+            cb.f.apply(null, cb.args)
+        }
+
+        if (canProceed) {
+            route(res)
+
+            if (autoUpdateEnabled) {
+                makeRequest()
+            }
+        }
     }).getSelected()
 }
 
 function toggleAutoUpdate(value) {
     autoUpdateEnabled = value
     if (autoUpdateEnabled) {
-        if (!requestingNow) {
+        if (!selectionRequestRunning) {
             makeRequest()
         }
     }
 }
 
-makeRequest()     
+makeRequest()  
+
 </script>

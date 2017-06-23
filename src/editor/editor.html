@@ -4,10 +4,9 @@
     <?!= include('editor.css'); ?>
 </head>
 <body>
-    <?!= include('editor.js'); ?>
-
-    <div>hello</div>
-    <div id="output">output here</div>
+    <div id="title">Title</div>
+    <div id="output">Output</div>
+    <div id="form"></div>
 
     <div id="settings">
         <input type="checkbox" 
@@ -16,3 +15,6 @@
                checked>auto-update</input>
     </div>
 </body>
+
+<?!= include('clientLibrary.js'); ?>
+<?!= include('editor.js'); ?>
