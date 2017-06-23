@@ -8,18 +8,53 @@ let currentLocation = null              // last available row:col of the selecti
 
 let templateImmutables = ['id', 'parents', 'children', 'subjects']
 
-function drawPropertyList(output, form, properties, location) {
+function onServerCallSuccess() {
+    currentLocation = null
+    canUpdateSelection = true
+    makeRequest()    
+}
 
+function drawPropertyList(output, form, location, properties) {
+    const requestErase = function(location) {
+        console.log('will erase at ', location)
+        if (location.row === 1) {
+            google.script.run
+                .withSuccessHandler(onServerCallSuccess)
+                .eraseEntityTemplate(location.col)
+        } else {
+
+        }
+    }
+    output.innerHTML = properties.id
+
+    let editableListKeys = []
+    
+    //
+    // draw immutables first
+    for (let key in properties) {
+        if (!templateImmutables.indexOf(key) === -1) {
+            editableListKeys.push(key)
+        }
+
+        let spaces = '' 
+        for (let i = 12 - key.length; i >= 0; i--) {
+            spaces += ' '
+        }
+        let pre = createElement('pre', null, form, {'margin-bottom': '-10px'})
+        pre.innerHTML = spaces + key + ': ' + deduceType(properties[key])
+    }
+
+    const remoeBtn = createButtonElement('erase', function() {
+        requestErase(location)
+    }, null, form, {'margin-top': '40px'})
 }
 
 function drawTemplateCreation(output, form, location) {
     const requestTemplateCreation = function(location, id, children, parents, special) {
         console.log('will create template ' + id + ' at ' + location.col)
-        google.script.run.withSuccessHandler(function() {
-            currentLocation = null
-            canUpdateSelection = true
-            makeRequest()
-        }).createEntityTemplate(location, id, children, parents, special)    
+        google.script.run
+            .withSuccessHandler(onServerCallSuccess)
+            .createEntityTemplate(location, id, children, parents, special)    
     }
 
     output.innerHTML = 'no entity template. create?'
@@ -69,23 +104,24 @@ function route(res) {
     const output = document.getElementById('output')
     const form = document.getElementById('form')
 
-    var newLocation = false
-    if (currentLocation === null) {
-        newLocation = true
-        currentLocation = {row: res.location.row, col: res.location.col}
-    } else {
-        if (currentLocation.row !== res.location.row ||
-            currentLocation.col !== res.location.col) {
-            newLocation = true
-            currentLocation = {row: res.location.row, col: res.location.col}
-        }
-    }
-
     if (res.result === 'error') {
         title.innerHTML = 'ERROR'
         output.innerHTML = res.reason
         form.innerHTML = ""
     } else if (res.result === 'ok') {
+        
+        var newLocation = false
+        if (currentLocation === null) {
+            newLocation = true
+            currentLocation = {row: res.location.row, col: res.location.col}
+        } else {
+            if (currentLocation.row !== res.location.row ||
+                currentLocation.col !== res.location.col) {
+                newLocation = true
+                currentLocation = {row: res.location.row, col: res.location.col}
+            }
+        }
+
         title.innerHTML = res.type + ' at [' + currentLocation.row + ':' + currentLocation.col + ']'
 
         if (!newLocation) return
@@ -96,7 +132,6 @@ function route(res) {
             if (res.value.length === 0 || res.document.length === 0) {
                 drawTemplateCreation(output, form, res.location)
             } else {
-                output.innerHTML = res.type + ' ' + res.value
                 drawPropertyList(output, form, res.location, JSON.parse(res.document))
             }
         } else if (res.type === 'entity') {

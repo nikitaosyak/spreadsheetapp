@@ -1,5 +1,13 @@
 <script>
 
+function deduceType(object) {
+    let value = typeof object
+    if (value === 'object') {
+        value = Array.isArray(object) ? 'array' : 'object'
+    }
+    return value
+}
+
 function createElement(tag, cssClass, parent, style, id) {
     const el = document.createElement(tag)
 

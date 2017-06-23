@@ -47,3 +47,17 @@ function createEntityTemplate(location, id, children, parents, special) {
     }
     cell.setNote(JSON.stringify(doc))
 }
+
+function eraseEntityTemplate(col) {
+    var sheet = SpreadsheetApp.getActive().getActiveSheet()
+    var current = 2
+    while(sheet.getRange(current, col).getValue() !== '') {
+        current += 1
+    }
+
+    for (current; current >= 1; current--) {
+        var cell = sheet.getRange(current, col)
+        cell.clear()
+        cell.clearNote()
+    }
+}
