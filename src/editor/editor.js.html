@@ -1,6 +1,6 @@
 <script>
 
-let canUpdateSelection = true           // locked by running UI callbacks in editor form
+let blockingRequestRunning = false           // locked by running UI callbacks in editor form
 let autoUpdateEnabled = true            // toggle auto update of cell selection
 let selectionRequestRunning = false     // is cell selection update request running atm
 let selectionRequestCallbackQueue = []  // queue of UI callbacks in the editor form
@@ -10,7 +10,7 @@ let templateImmutables = ['id', 'parents', 'children', 'subjects']
 
 function onServerCallSuccess() {
     currentLocation = null
-    canUpdateSelection = true
+    blockingRequestRunning = false
     makeRequest()    
 }
 
@@ -45,8 +45,13 @@ function drawPropertyList(output, form, location, properties) {
     }
 
     const remoeBtn = createButtonElement('erase', function() {
-        requestErase(location)
-    }, null, form, {'margin-top': '40px'})
+        output.innerHTML = 'requesting erase..'
+
+        selectionRequestCallbackQueue.push({
+            f: requestErase, 
+            args: [location]
+        })
+    }, null, form, {'margin-top': '40px', 'position': 'relative', 'left': '230px'})
 }
 
 function drawTemplateCreation(output, form, location) {
@@ -145,7 +150,7 @@ function route(res) {
 }
 
 function makeRequest() {
-    if (!canUpdateSelection) return
+    if (blockingRequestRunning) return
 
     selectionRequestRunning = true
     google.script.run.withSuccessHandler(function(res) {
@@ -155,18 +160,17 @@ function makeRequest() {
         if (selectionRequestCallbackQueue.length > 0) {
             console.log('update selection: stopped by UI callback! current queue len: ' + selectionRequestCallbackQueue.length)
             canProceed = false
-            canUpdateSelection = false
+            blockingRequestRunning = true
             let cb = selectionRequestCallbackQueue[0]
             selectionRequestCallbackQueue.shift()
             cb.f.apply(null, cb.args)
         }
 
-        if (canProceed) {
-            route(res)
+        if (!canProceed) return
+        route(res)
 
-            if (autoUpdateEnabled) {
-                makeRequest()
-            }
+        if (autoUpdateEnabled) {
+            makeRequest()
         }
     }).getSelected()
 }
