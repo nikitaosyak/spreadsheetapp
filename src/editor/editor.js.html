@@ -97,8 +97,8 @@ function drawPropertyList(type, output, form, location, properties) {
     pNameField.setAttribute('maxlength', "12")
     const pTypeField = createDropdown(['string', 'number', 'link', 'custom'], 'horizontal_element', null, {'width': '55px'})
     const pCreateBtn = createButtonElement('add', function() {
-        if (pNameField.value.length < 4) {
-            output.innerHTML = 'property name is too short'
+        if (!/^[A-Za-z]{4,}$/.test(pNameField.value)) {
+            output.innerHTML = 'invalid name'
             return  
         }
         if (pNameField.value.toLowerCase() in properties) {
@@ -161,8 +161,8 @@ function drawTemplateCreation(output, form, location) {
             output.innerHTML = 'cannot create entity with no relations'
             return
         } 
-        if (idInput.value.length < 4) {
-            output.innerHTML = 'template name is too short'
+        if (!/^[A-Za-z]{4,}$/.test(idInput.value)) {
+            output.innerHTML = 'invalid name'
             return
         }
 
