@@ -1,5 +1,13 @@
 <script>
 
+function fillStringTo(numChars, value) {
+     let spaces = '' 
+    for (let i = numChars - value.length; i >= 0; i--) {
+        spaces += ' '
+    }
+    return spaces + value
+}
+
 function createElement(tag, cssClass, parent, style, id) {
     const el = document.createElement(tag)
 

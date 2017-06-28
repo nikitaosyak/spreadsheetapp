@@ -1,13 +1,20 @@
 <script>
 
-let blockingRequestRunning = false           // locked by running UI callbacks in editor form
+let blockingRequestRunning = false      // locked by running UI callbacks in editor form
 let autoUpdateEnabled = true            // toggle auto update of cell selection
 let selectionRequestRunning = false     // is cell selection update request running atm
 let selectionRequestCallback = null     // UI callback in the editor form
 let currentLocation = null              // last available row:col of the selection
 
-const PROPERTY_TYPE = {TEMPLATE: 'template', ENTITY: 'entity'}
 let templateImmutables = ['id', 'parents', 'children', 'subjects']
+let entityImmutables = ['template']
+
+const maxPropertyNameLen = 12
+const maxTemplateNameLen = 16
+const allowedStringValue = /^[a-zA-Z0-9].*$/
+const allowedNumberValue = /^[0-9].*$/
+const allowedPropertyName = /^(?![0-9])[a-zA-Z0-9]{4,}$/
+const allowedTemplateName = /^[A-Za-z]{4,}$/
 
 function onServerCallSuccess() {
     removeAllChildren(document.getElementById('form'))
@@ -25,15 +32,57 @@ function isBlocking(output) {
     return false
 }
 
-function drawPropertyList(type, output, form, location, properties) {
-    const requestErase = function(type, location) {
+function drawEntityCreation(output, form, location, template) {
+    const requestEntityCreation = function(location, dbDocument) {
+        console.log('will create', dbDocument, 'at', location)
+        google.script.run
+            .withSuccessHandler(onServerCallSuccess)
+            .createEntity(location, dbDocument)
+    }
+
+    output.innerHTML = 'no entity of type ' + template.id + '. create?'
+
+    // const idCaption = createElement('pre')
+    // idCaption.innerHTML = fillStringTo(maxPropertyNameLen, 'id')
+    const inputs = {}
+    for (let key in template) {
+        const caption = createElement('pre', 'horizontal_element')
+        caption.innerHTML = fillStringTo(maxPropertyNameLen, key)
+
+        switch(template[key]) {
+            case template.id:
+            case 'string':
+                const strInput = createInputElement('', 'horizontal_element', null, {'width': '85px'})
+                strInput.setAttribute('maxlength', maxPropertyNameLen.toString())
+                layoutElementsHorizontally(form, [caption, strInput])
+                inputs[key] = {el: strInput, validator: null}
+            break
+            case 'link':
+                const linkInput = createInputElement('', 'horizontal_element', null, {'width': '85px'})
+                const btnAdd = createButtonElement('add', function() {
+
+                })
+
+                layoutElementsHorizontally(form, [caption, linkInput, btnAdd])
+            break
+            case 'number':
+                const numInput = createInputElement('', 'horizontal_element', null, {'width': '85px', 'text-align': 'right'})
+                layoutElementsHorizontally(form, [caption, numInput])
+                inputs[key] = {el: numInput}
+            break
+        }
+    }
+}
+
+function drawTemplatePropertyList(output, form, location, properties) {
+    const requestErase = function(location) {
         console.log('will erase at ', location)
         google.script.run
             .withSuccessHandler(onServerCallSuccess)
             .eraseEntityTemplate(location.col)
     }
 
-    const requestFieldAdd = function(type, location, fieldName, fieldType) {
+    const requestFieldAdd = function(location, fieldName, fieldType) {
         console.log('will create at', location, fieldName, fieldType)
         google.script.run
             .withSuccessHandler(onServerCallSuccess)
@@ -60,13 +109,8 @@ function drawPropertyList(type, output, form, location, properties) {
 
         if (key === 'id') continue
 
-        let spaces = '' 
-        for (let i = 12 - key.length; i >= 0; i--) {
-            spaces += ' '
-        }
-
         let pre = createElement('pre', null, form, {'margin': '3px', 'color': 'gray'})
-        pre.innerHTML = spaces + key + ': ' + properties[key]
+        pre.innerHTML = fillStringTo(maxPropertyNameLen, key) + ': ' + properties[key]
     }
 
     //
@@ -74,12 +118,8 @@ function drawPropertyList(type, output, form, location, properties) {
     for (let i = 0; i < editableListKeys.length; i++) {
         let key = editableListKeys[i]
 
-        let spaces = '' 
-        for (let i = 12 - key.length; i >= 0; i--) {
-            spaces += ' '
-        }
         const pre = createElement('pre', null, form, {'margin': '3px', 'color': 'black'})
-        pre.innerHTML = spaces + key + ': ' + properties[key]
+        pre.innerHTML = fillStringTo(maxPropertyNameLen, key) + ': ' + properties[key]
 
         const eraseCallObj = {f: requestFieldErase, args: [location, key]}
         const removeEl = createButtonElement('del', function() {
@@ -94,10 +134,10 @@ function drawPropertyList(type, output, form, location, properties) {
     createElement('div', null, form, {'height': '20px'})
     const pLabel = createPElement('add property', 'horizontal_element', null,)
     const pNameField = createInputElement('', 'horizontal_element', null, {'width': '85px'})
-    pNameField.setAttribute('maxlength', "12")
+    pNameField.setAttribute('maxlength', maxPropertyNameLen.toString())
     const pTypeField = createDropdown(['string', 'number', 'link', 'custom'], 'horizontal_element', null, {'width': '55px'})
     const pCreateBtn = createButtonElement('add', function() {
-        if (!/^[A-Za-z]{4,}$/.test(pNameField.value)) {
+        if (!allowedPropertyName.test(pNameField.value)) {
             output.innerHTML = 'invalid name'
             return  
         }
@@ -111,7 +151,7 @@ function drawPropertyList(type, output, form, location, properties) {
         output.innerHTML = 'requesting create..'
         selectionRequestCallback = {
             f: requestFieldAdd, 
-            args: [type, location, pNameField.value.toLowerCase(), pTypeField.value]
+            args: [location, pNameField.value.toLowerCase(), pTypeField.value]
         }
         
     }, 'horizontal_element', null, {'width': '40px'})
@@ -123,7 +163,7 @@ function drawPropertyList(type, output, form, location, properties) {
         output.innerHTML = 'requesting erase..'
         selectionRequestCallback = {
             f: requestErase, 
-            args: [type, location]
+            args: [location]
         }
         removeBtn.disabled = true
     }, null, form, {'margin-top': '40px', 'position': 'relative', 'left': '230px'})
@@ -141,7 +181,7 @@ function drawTemplateCreation(output, form, location) {
                 
     let idCaption = createPElement(null, 'template id', null, 'horizontal_element')
     let idInput = createInputElement('', 'horizontal_element')
-    idInput.setAttribute('maxlength', "16")
+    idInput.setAttribute('maxlength', maxTemplateNameLen.toString())
     layoutElementsHorizontally(form, [idCaption, idInput])
 
     let childrenBox, parentBox, specialBox
@@ -161,7 +201,7 @@ function drawTemplateCreation(output, form, location) {
             output.innerHTML = 'cannot create entity with no relations'
             return
         } 
-        if (!/^[A-Za-z]{4,}$/.test(idInput.value)) {
+        if (!allowedTemplateName.test(idInput.value)) {
             output.innerHTML = 'invalid name'
             return
         }
@@ -215,13 +255,17 @@ function route(res) {
             if (res.value.length === 0 || res.document.length === 0) {
                 drawTemplateCreation(output, form, res.location)
             } else {
-                drawPropertyList(PROPERTY_TYPE.TEMPLATE, output, form, res.location, JSON.parse(res.document))
+                drawTemplatePropertyList(output, form, res.location, JSON.parse(res.document))
             }
         } else if (res.type === 'entity') {
             if (res.template.length === 0) {
                 output.innerHTML = "No template for this entity."
             } else {
-                output.innerHTML = "Entity editor will be here"
+                if (res.value.length === 0 || res.document.length === 0) {
+                    drawEntityCreation(output, form, res.location, JSON.parse(res.template))
+                } else {
+                    output.innerHTML = "Entity editor will be here"
+                }
             }
         }
     }
