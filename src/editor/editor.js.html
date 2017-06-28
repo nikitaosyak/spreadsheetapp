@@ -3,26 +3,47 @@
 let blockingRequestRunning = false           // locked by running UI callbacks in editor form
 let autoUpdateEnabled = true            // toggle auto update of cell selection
 let selectionRequestRunning = false     // is cell selection update request running atm
-let selectionRequestCallbackQueue = []  // queue of UI callbacks in the editor form
+let selectionRequestCallback = null     // UI callback in the editor form
 let currentLocation = null              // last available row:col of the selection
 
+const PROPERTY_TYPE = {TEMPLATE: 'template', ENTITY: 'entity'}
 let templateImmutables = ['id', 'parents', 'children', 'subjects']
 
 function onServerCallSuccess() {
+    removeAllChildren(document.getElementById('form'))
+
     currentLocation = null
     blockingRequestRunning = false
     makeRequest()    
 }
 
-function drawPropertyList(output, form, location, properties) {
-    const requestErase = function(location) {
+function isBlocking(output) {
+    if (blockingRequestRunning || selectionRequestCallback != null) {
+        output.innerHTML = 'blocking operation'
+        return true
+    }
+    return false
+}
+
+function drawPropertyList(type, output, form, location, properties) {
+    const requestErase = function(type, location) {
         console.log('will erase at ', location)
-        if (location.row === 1) {
+        if (type === PROPERTY_TYPE.TEMPLATE) {
             google.script.run
                 .withSuccessHandler(onServerCallSuccess)
                 .eraseEntityTemplate(location.col)
-        } else {
+        } else if (type == PROPERTY_TYPE.ENTITY) {
 
+        }
+    }
+
+    const requestFieldAdd = function(type, location, fieldName, fieldType) {
+        console.log('will create at', location, fieldName, fieldType)
+        if (type === PROPERTY_TYPE.TEMPLATE) {
+            google.script.run
+                .withSuccessHandler(onServerCallSuccess)
+                .addEntityTemplateField(location.col, fieldName, fieldType)
+        } else if (type == PROPERTY_TYPE.ENTITY) {
         }
     }
     output.innerHTML = properties.id
@@ -40,17 +61,50 @@ function drawPropertyList(output, form, location, properties) {
         for (let i = 12 - key.length; i >= 0; i--) {
             spaces += ' '
         }
-        let pre = createElement('pre', null, form, {'margin-bottom': '-10px'})
+        let pre = createElement('pre', null, form, {'margin': '3px'})
         pre.innerHTML = spaces + key + ': ' + deduceType(properties[key])
     }
 
-    const remoeBtn = createButtonElement('erase', function() {
-        output.innerHTML = 'requesting erase..'
+    //
+    // draw existing additional properties
 
-        selectionRequestCallbackQueue.push({
+    //
+    // addition of the properties
+    createElement('div', null, form, {'height': '20px'})
+    const pLabel = createPElement('add property', 'horizontal_element', null,)
+    const pNameField = createInputElement('', 'horizontal_element', null, {'width': '85px'})
+    pNameField.setAttribute('maxlength', "12")
+    const pTypeField = createDropdown(['string', 'number', 'array', 'range', 'enum'], 'horizontal_element', null, {'width': '55px'})
+    const pCreateBtn = createButtonElement('add', function() {
+        if (pNameField.value.length < 4) {
+            output.innerHTML = 'property name is too short'
+            return  
+        }
+        if (pNameField.value.toLowerCase() in properties) {
+            output.innerHTML = 'cannot add matching name'
+            return
+        }
+
+        if (isBlocking(output)) return
+
+        output.innerHTML = 'requesting create..'
+        selectionRequestCallback = {
+            f: requestFieldAdd, 
+            args: [type, location, pNameField.value.toLowerCase(), pTypeField.value]
+        }
+        
+    }, 'horizontal_element', null, {'width': '40px'})
+    layoutElementsHorizontally(form, [pLabel, pNameField, pTypeField, pCreateBtn])
+
+    const remoeBtn = createButtonElement('erase', function() {
+        if (isBlocking(output)) return
+        
+        output.innerHTML = 'requesting erase..'
+        selectionRequestCallback = {
             f: requestErase, 
-            args: [location]
-        })
+            args: [type, location]
+        }
+        remoeBtn.disabled = true
     }, null, form, {'margin-top': '40px', 'position': 'relative', 'left': '230px'})
 }
 
@@ -90,8 +144,10 @@ function drawTemplateCreation(output, form, location) {
             return
         }
 
+        if (isBlocking(output)) return
+
         output.innerHTML = 'creating entity template..'
-        selectionRequestCallbackQueue.push({
+        selectionRequestCallback = {
             f: requestTemplateCreation, 
             args: [
                 location, 
@@ -100,7 +156,7 @@ function drawTemplateCreation(output, form, location) {
                 parentBox.checked, 
                 specialBox.checked
             ]
-        })
+        }
     }, 'vertical_element', form, {'margin-top': '10px'})
 }
 
@@ -137,11 +193,11 @@ function route(res) {
             if (res.value.length === 0 || res.document.length === 0) {
                 drawTemplateCreation(output, form, res.location)
             } else {
-                drawPropertyList(output, form, res.location, JSON.parse(res.document))
+                drawPropertyList(PROPERTY_TYPE.TEMPLATE, output, form, res.location, JSON.parse(res.document))
             }
         } else if (res.type === 'entity') {
             if (res.template.length === 0) {
-                output.innerHTML = "There is no template for this entity."
+                output.innerHTML = "No template for this entity."
             } else {
                 output.innerHTML = "Entity editor will be here"
             }
@@ -157,13 +213,12 @@ function makeRequest() {
         selectionRequestRunning = false
 
         let canProceed = true
-        if (selectionRequestCallbackQueue.length > 0) {
-            console.log('update selection: stopped by UI callback! current queue len: ' + selectionRequestCallbackQueue.length)
+        if (selectionRequestCallback != null) {
+            console.log('update selection: stopped by UI callback!')
             canProceed = false
             blockingRequestRunning = true
-            let cb = selectionRequestCallbackQueue[0]
-            selectionRequestCallbackQueue.shift()
-            cb.f.apply(null, cb.args)
+            selectionRequestCallback.f.apply(null, selectionRequestCallback.args)
+            selectionRequestCallback = null
         }
 
         if (!canProceed) return

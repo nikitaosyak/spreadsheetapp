@@ -3,7 +3,35 @@
 function deduceType(object) {
     let value = typeof object
     if (value === 'object') {
-        value = Array.isArray(object) ? 'array' : 'object'
+        value = 'object'
+        
+        if (Array.isArray(object)) {
+            value = 'array'
+            if (object.length > 0) {
+                if (object.length == 2) {
+                    if (typeof object[0] === 'number' && typeof object[1] === 'number') {
+                        value = 'range'
+                    }
+                }
+
+                let allStrings = true
+                let allUpperCase = true
+                for (let i = 0; i < object.length; i++) {
+                    if (typeof object[i] !== 'string') {
+                        allStrings = false
+                        break
+                    }
+
+                    if (!/^[A-Z]*+$/.test(object[i])) {
+                        allUpperCase = false
+                        break
+                    }
+                }
+                if (allStrings && allUpperCase) {
+                    value = 'enum'
+                }    
+            }
+        }
     }
     return value
 }
@@ -84,6 +112,16 @@ function createPElement(text, cssClass, parent, style, id) {
     const p = createElement('p', cssClass, parent, style, id)
     p.innerHTML = text
     return p
+}
+
+function createDropdown(options, cssClass, parent, style, id) {
+    const dd = createElement('select', cssClass, parent, style, id)
+    for (let i = 0; i < options.length; i++) {
+        const op = createElement('option', null, dd)
+        op.setAttribute('value', options[i])
+        op.innerHTML = options[i]
+    }
+    return dd
 }
 
 </script>

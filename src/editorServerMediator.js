@@ -61,3 +61,12 @@ function eraseEntityTemplate(col) {
         cell.clearNote()
     }
 }
+
+function addEntityTemplateField(col, fieldName, fieldType) {
+    var sheet = SpreadsheetApp.getActive().getActiveSheet()
+    var cell = sheet.getRange(1, col)
+    
+    var template = JSON.parse(cell.getNote())
+    template[fieldName] = fieldType
+    cell.setNote(JSON.stringify(template))
+}
