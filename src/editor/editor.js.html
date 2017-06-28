@@ -28,23 +28,23 @@ function isBlocking(output) {
 function drawPropertyList(type, output, form, location, properties) {
     const requestErase = function(type, location) {
         console.log('will erase at ', location)
-        if (type === PROPERTY_TYPE.TEMPLATE) {
-            google.script.run
-                .withSuccessHandler(onServerCallSuccess)
-                .eraseEntityTemplate(location.col)
-        } else if (type == PROPERTY_TYPE.ENTITY) {
-
-        }
+        google.script.run
+            .withSuccessHandler(onServerCallSuccess)
+            .eraseEntityTemplate(location.col)
     }
 
     const requestFieldAdd = function(type, location, fieldName, fieldType) {
         console.log('will create at', location, fieldName, fieldType)
-        if (type === PROPERTY_TYPE.TEMPLATE) {
-            google.script.run
-                .withSuccessHandler(onServerCallSuccess)
-                .addEntityTemplateField(location.col, fieldName, fieldType)
-        } else if (type == PROPERTY_TYPE.ENTITY) {
-        }
+        google.script.run
+            .withSuccessHandler(onServerCallSuccess)
+            .addEntityTemplateField(location.col, fieldName, fieldType)
+    }
+
+    const requestFieldErase = function(location, fieldName) {
+        console.log('will erase property at', location)
+        google.script.run
+            .withSuccessHandler(onServerCallSuccess)
+            .removeEntityTemplateField(location.col, fieldName)
     }
     output.innerHTML = properties.id
 
@@ -53,20 +53,41 @@ function drawPropertyList(type, output, form, location, properties) {
     //
     // draw immutables first
     for (let key in properties) {
-        if (!templateImmutables.indexOf(key) === -1) {
+        if (templateImmutables.indexOf(key) === -1) {
             editableListKeys.push(key)
+            continue
         }
+
+        if (key === 'id') continue
 
         let spaces = '' 
         for (let i = 12 - key.length; i >= 0; i--) {
             spaces += ' '
         }
-        let pre = createElement('pre', null, form, {'margin': '3px'})
-        pre.innerHTML = spaces + key + ': ' + deduceType(properties[key])
+
+        let pre = createElement('pre', null, form, {'margin': '3px', 'color': 'gray'})
+        pre.innerHTML = spaces + key + ': ' + properties[key]
     }
 
     //
     // draw existing additional properties
+    for (let i = 0; i < editableListKeys.length; i++) {
+        let key = editableListKeys[i]
+
+        let spaces = '' 
+        for (let i = 12 - key.length; i >= 0; i--) {
+            spaces += ' '
+        }
+        const pre = createElement('pre', null, form, {'margin': '3px', 'color': 'black'})
+        pre.innerHTML = spaces + key + ': ' + properties[key]
+
+        const eraseCallObj = {f: requestFieldErase, args: [location, key]}
+        const removeEl = createButtonElement('del', function() {
+            if (isBlocking(output)) return
+            output.innerHTML = 'requesting field remove..'
+            selectionRequestCallback = eraseCallObj
+        }, null, form, {'position': 'absolute', 'left': '200px', 'margin-top': '-18px', 'height': '16px', 'width': '32px'})
+    }
 
     //
     // addition of the properties
@@ -74,7 +95,7 @@ function drawPropertyList(type, output, form, location, properties) {
     const pLabel = createPElement('add property', 'horizontal_element', null,)
     const pNameField = createInputElement('', 'horizontal_element', null, {'width': '85px'})
     pNameField.setAttribute('maxlength', "12")
-    const pTypeField = createDropdown(['string', 'number', 'array', 'range', 'enum'], 'horizontal_element', null, {'width': '55px'})
+    const pTypeField = createDropdown(['string', 'number', 'link', 'custom'], 'horizontal_element', null, {'width': '55px'})
     const pCreateBtn = createButtonElement('add', function() {
         if (pNameField.value.length < 4) {
             output.innerHTML = 'property name is too short'
@@ -96,7 +117,7 @@ function drawPropertyList(type, output, form, location, properties) {
     }, 'horizontal_element', null, {'width': '40px'})
     layoutElementsHorizontally(form, [pLabel, pNameField, pTypeField, pCreateBtn])
 
-    const remoeBtn = createButtonElement('erase', function() {
+    const removeBtn = createButtonElement('erase', function() {
         if (isBlocking(output)) return
         
         output.innerHTML = 'requesting erase..'
@@ -104,7 +125,7 @@ function drawPropertyList(type, output, form, location, properties) {
             f: requestErase, 
             args: [type, location]
         }
-        remoeBtn.disabled = true
+        removeBtn.disabled = true
     }, null, form, {'margin-top': '40px', 'position': 'relative', 'left': '230px'})
 }
 
@@ -120,6 +141,7 @@ function drawTemplateCreation(output, form, location) {
                 
     let idCaption = createPElement(null, 'template id', null, 'horizontal_element')
     let idInput = createInputElement('', 'horizontal_element')
+    idInput.setAttribute('maxlength', "16")
     layoutElementsHorizontally(form, [idCaption, idInput])
 
     let childrenBox, parentBox, specialBox
@@ -151,7 +173,7 @@ function drawTemplateCreation(output, form, location) {
             f: requestTemplateCreation, 
             args: [
                 location, 
-                idInput.value, 
+                idInput.value.toLowerCase(), 
                 childrenBox.checked, 
                 parentBox.checked, 
                 specialBox.checked
@@ -214,7 +236,7 @@ function makeRequest() {
 
         let canProceed = true
         if (selectionRequestCallback != null) {
-            console.log('update selection: stopped by UI callback!')
+            // console.log('update selection: stopped by UI callback!')
             canProceed = false
             blockingRequestRunning = true
             selectionRequestCallback.f.apply(null, selectionRequestCallback.args)

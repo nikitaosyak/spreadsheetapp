@@ -37,13 +37,13 @@ function createEntityTemplate(location, id, children, parents, special) {
 
     var doc = { id: id }
     if (children) {
-        doc.children = []
+        doc.children = 'link'
     }
     if (parents) {
-        doc.parens = []
+        doc.parents = 'link'
     }
     if (special) {
-        doc.subjects = []
+        doc.subjects = 'link'
     }
     cell.setNote(JSON.stringify(doc))
 }
@@ -68,5 +68,14 @@ function addEntityTemplateField(col, fieldName, fieldType) {
     
     var template = JSON.parse(cell.getNote())
     template[fieldName] = fieldType
+    cell.setNote(JSON.stringify(template))
+}
+
+function removeEntityTemplateField(col, fieldName) {
+    var sheet = SpreadsheetApp.getActive().getActiveSheet()
+    var cell = sheet.getRange(1, col)
+    
+    var template = JSON.parse(cell.getNote())
+    delete template[fieldName]
     cell.setNote(JSON.stringify(template))
 }
