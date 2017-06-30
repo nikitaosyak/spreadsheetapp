@@ -42,36 +42,116 @@ function drawEntityCreation(output, form, location, template) {
 
     output.innerHTML = 'no entity of type ' + template.id + '. create?'
 
-    // const idCaption = createElement('pre')
-    // idCaption.innerHTML = fillStringTo(maxPropertyNameLen, 'id')
     const inputs = {}
     for (let key in template) {
-        const caption = createElement('pre', 'horizontal_element')
+        const caption = createElement('pre', 'horizontal_element', null, {'width': '170px'})
         caption.innerHTML = fillStringTo(maxPropertyNameLen, key)
-
         switch(template[key]) {
             case template.id:
             case 'string':
-                const strInput = createInputElement('', 'horizontal_element', null, {'width': '85px'})
+                caption.innerHTML += '[str]'
+                const strInput = createInputElement('', 'horizontal_element', null, {'width': '100px'})
                 strInput.setAttribute('maxlength', maxPropertyNameLen.toString())
                 layoutElementsHorizontally(form, [caption, strInput])
-                inputs[key] = {el: strInput, validator: null}
+                if (template[key] === template.id) {
+                    inputs[key] = {el: strInput, isValid: function(value) { return allowedPropertyName.test(value) }}
+                } else if (template[key] === 'string') {
+                    inputs[key] = {el: strInput, isValid: function(value) { return true }}
+                }
             break
             case 'link':
-                const linkInput = createInputElement('', 'horizontal_element', null, {'width': '85px'})
-                const btnAdd = createButtonElement('add', function() {
-
+                caption.innerHTML += '[link]'
+                const valueLabel = createElement('pre', 'horizontal_element', null, {'width': '20px'})
+                valueLabel.innerHTML = '2'
+                const slider = createElement('input', 'horizontal_element', null, {'width': '50px'})
+                slider.setAttribute('type', 'range')
+                slider.setAttribute('step', '1')
+                slider.setAttribute('min', '0')
+                slider.setAttribute('max', '10')
+                slider.setAttribute('value', '2')
+                slider.addEventListener('change', function() {
+                    valueLabel.innerHTML = slider.value.toString()
+                })
+                slider.addEventListener('input', function() {
+                    valueLabel.innerHTML = slider.value.toString()
                 })
 
-                layoutElementsHorizontally(form, [caption, linkInput, btnAdd])
+                const btnMinus = createButtonElement('-', function() {
+                    slider.stepDown()
+                    valueLabel.innerHTML = slider.value.toString()
+                }, 'horizontal_element', null, {'width': '15px', 'height': '15px'})
+                const btnPlus = createButtonElement('+', function() {
+                    slider.stepUp()
+                    valueLabel.innerHTML = slider.value.toString()
+                }, 'horizontal_element', null, {'width': '15px', 'height': '15px'})
+
+                layoutElementsHorizontally(form, [caption, valueLabel, btnMinus, slider, btnPlus])
+                inputs[key] = {el: slider, isValid: function(value) { return true }}
             break
             case 'number':
-                const numInput = createInputElement('', 'horizontal_element', null, {'width': '85px', 'text-align': 'right'})
-                layoutElementsHorizontally(form, [caption, numInput])
-                inputs[key] = {el: numInput}
+                caption.innerHTML += '[nmbr]'
+                const spacer = createElement('div', 'horizontal_element', null, {'width': '50px'})
+                const numInput = createInputElement('', 'horizontal_element', null, {'width': '50px', 'text-align': 'right'})
+                layoutElementsHorizontally(form, [caption, spacer, numInput])
+                inputs[key] = {el: numInput, isValid: function(value) { return !Number.isNaN(Number(value)) }}
             break
         }
     }
+
+    const createBtn = createButtonElement('createEntity', function() {
+        const object = {}
+        //
+        // validate correctness of input
+        let canCreate = true
+        for (let k in inputs) {
+            const value = inputs[k].el.value
+            if (!inputs[k].isValid(value)) {
+                canCreate = false
+                output.innerHTML = 'field [' + k + '] is not valid'
+                break
+            }
+            object[k] = value
+        }
+
+        if (canCreate) {
+            output.innerHTML = 'will create object ' + object.id + '..'
+            //
+            // properly create new object
+            console.log('template: ', template)
+            console.log('meta object: ', object)
+            const finalObject = {}
+            for (let k in object) {
+                const fieldType = template[k]
+                switch(fieldType) {
+                    case template.id:
+                    case 'string':    
+                        finalObject[k] = object[k]
+                        break
+                    case 'link':
+                        finalObject[k] = []
+                        for (let i = 0; i < Number.parseInt(object[k]); i++) {
+                            finalObject[k].push('')
+                        }
+                        break
+                    case 'number':
+                        finalObject[k] = Number(object[k])
+                        break
+                    default:
+                        finalObject[k] = 'unknown type'
+                        output.innerHTML = 'field [' + k + '] has unknown type'
+                        canCreate = false
+                        break
+                }
+            }
+            if (canCreate) {
+                output.innerHTML = 'requesting create..'
+                selectionRequestCallback = {
+                    f: requestEntityCreation,
+                    args: [location, finalObject]
+                }
+            }
+        }
+    }, null, form, {'margin-top': '40px'})
 }
 
 function drawTemplatePropertyList(output, form, location, properties) {

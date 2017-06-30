@@ -30,6 +30,10 @@ function getSelected() {
     return resultData
 }
 
+//
+// Template methods
+//
+
 function createEntityTemplate(location, id, children, parents, special) {
     var sheet = SpreadsheetApp.getActive().getActiveSheet()
     var cell = sheet.getRange(location.row, location.col)
@@ -46,6 +50,7 @@ function createEntityTemplate(location, id, children, parents, special) {
         doc.subjects = 'link'
     }
     cell.setNote(JSON.stringify(doc))
+    cell.setFontWeight('bold')
 }
 
 function eraseEntityTemplate(col) {
@@ -78,4 +83,22 @@ function removeEntityTemplateField(col, fieldName) {
     var template = JSON.parse(cell.getNote())
     delete template[fieldName]
     cell.setNote(JSON.stringify(template))
+}
+
+//
+// Entity methods
+//
+
+function createEntity(location, dbDocument) {
+    var sh = SpreadsheetApp.getActive().getActiveSheet()
+    var cell = sh.getRange(location.row, location.col)
+    var currentRow = location.row
+    while(sh.getRange(currentRow-1, location.col).isBlank() && currentRow > 1) {
+        sheet().log(currentRow)
+        currentRow -= 1
+        cell = sh.getRange(currentRow, location.col)
+    }
+    cell.setValue(dbDocument.id)
+    cell.setNote(JSON.stringify(dbDocument))
+    cell.activate()
 }
