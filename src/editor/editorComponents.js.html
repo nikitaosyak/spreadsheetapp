@@ -1,0 +1,99 @@
+<script>
+
+function initBaker(parent, children) {
+    return function(validator, component) {
+        layoutElementsHorizontally(parent, children.concat(component.children))
+        return {
+            el: component.valueGetter,
+            isValid: validator
+        }    
+    }
+}
+
+function inputComponent(text, width, maxLen, textAlign) {
+    const children = []
+    const leftover = 100 - width
+    if (leftover > 0) {
+        const spacer = createElement('div', 'horizontal_element', null, {'width': leftover.toString() + 'px'})
+        children.push(spacer)
+    }
+
+    const input = createInputElement(text, 'horizontal_element', null, {
+        'width': width.toString() + 'px',
+        'text-align': textAlign
+    })
+
+    if (maxLen > 0) {
+        input.setAttribute('maxlength', maxLen.toString())
+    }
+    children.push(input)
+
+    return {
+        valueGetter: {
+            get value() { return input.value }
+        },
+        get children() { return children }
+    }
+}
+
+function sliderComponent(min, max, step, value, onChange) {
+    const valueLabel = createElement('pre', 'horizontal_element', null, {'width': '20px'})
+    valueLabel.innerHTML = value.toString()
+    const slider = createElement('input', 'horizontal_element', null, {'width': '50px'})
+    slider.setAttribute('type', 'range')
+    slider.setAttribute('min', min.toString())
+    slider.setAttribute('max', max.toString())
+    slider.setAttribute('step', step.toString())
+    slider.setAttribute('value', value.toString())
+    
+    slider.addEventListener('change', function() {
+        valueLabel.innerHTML = slider.value.toString()
+        if (onChange) onChange()
+    })
+    slider.addEventListener('input', function() {
+        valueLabel.innerHTML = slider.value.toString()
+        if (onChange) onChange()
+    })
+
+    const btnMinus = createButtonElement('-', function() {
+        slider.stepDown()
+        valueLabel.innerHTML = slider.value.toString()
+        if (onChange) onChange()
+    }, 'horizontal_element', null, {'width': '15px', 'height': '15px'})
+    const btnPlus = createButtonElement('+', function() {
+        slider.stepUp()
+        valueLabel.innerHTML = slider.value.toString()
+        if (onChange) onChange()
+    }, 'horizontal_element', null, {'width': '15px', 'height': '15px'})
+
+
+    return {
+        valueGetter: {
+            get value() { return slider.value }
+        },
+        get children() {
+            return [valueLabel, btnMinus, slider, btnPlus]
+        }
+    }
+}
+
+function rangeComponent(min, max) {
+    const minInput = createInputElement('0', 'horizontal_element', null, {'width': '20px', 'text-align': 'right'})
+    const rangeSpacer = createElement('div', 'horizontal_element', null, {'width': '38px'})
+    const rangePre = createElement('pre', 'horizontal_element', null, {'width': '10px'})
+    rangePre.innerHTML = '-'
+    const maxInput = createInputElement('10', 'horizontal_element', null, {'width': '20px', 'text-align': 'right'})
+
+    return {
+        valueGetter: {
+            get value() {
+                return [Number.parseInt(minInput.value), Number.parseInt(maxInput.value)]
+            }    
+        },
+        get children() {
+            return [rangeSpacer, minInput, rangePre, maxInput]
+        }
+    }
+}
+
+</script>
