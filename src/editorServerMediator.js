@@ -30,6 +30,28 @@ function getSelected() {
     return resultData
 }
 
+function getDefaultValue(fieldType) {
+    switch(fieldType) {
+        case 'string': return ''
+        case 'number': return 0
+        case 'range': return [0, 1]
+        case 'link': 
+        case 'enum':
+            return []
+        default: return 'UNKNOWN TYPE'
+    }
+}
+
+function iterateObjects(sh, col, cb) {
+    var current = 1
+    while(!sh.getRange(current + 1, col).isBlank()) {
+        current += 1
+    }
+    for (current; current > 1; current--) {
+        cb(sh.getRange(current, col))
+    }
+}
+
 //
 // Template methods
 //
@@ -55,34 +77,47 @@ function createEntityTemplate(location, id, children, parents, special) {
 
 function eraseEntityTemplate(col) {
     var sheet = SpreadsheetApp.getActive().getActiveSheet()
-    var current = 2
-    while(sheet.getRange(current, col).getValue() !== '') {
-        current += 1
-    }
 
-    for (current; current >= 1; current--) {
-        var cell = sheet.getRange(current, col)
+    var templateCell = sheet.getRange(1, col)
+    templateCell.clear()
+    templateCell.clearNote()
+
+    iterateObjects(sheet, col, function(cell) {
         cell.clear()
         cell.clearNote()
-    }
+    })
+
+    
 }
 
 function addEntityTemplateField(col, fieldName, fieldType) {
     var sheet = SpreadsheetApp.getActive().getActiveSheet()
-    var cell = sheet.getRange(1, col)
+    var templateCell = sheet.getRange(1, col)
     
-    var template = JSON.parse(cell.getNote())
+    var template = JSON.parse(templateCell.getNote())
     template[fieldName] = fieldType
-    cell.setNote(JSON.stringify(template))
+    templateCell.setNote(JSON.stringify(template))
+
+    iterateObjects(sheet, col, function(cell) {
+        var dbDocument = JSON.parse(cell.getNote())
+        dbDocument[fieldName] = getDefaultValue(fieldType)
+        cell.setNote(JSON.stringify(dbDocument))
+    })
 }
 
 function removeEntityTemplateField(col, fieldName) {
     var sheet = SpreadsheetApp.getActive().getActiveSheet()
-    var cell = sheet.getRange(1, col)
-    
-    var template = JSON.parse(cell.getNote())
+    var templateCell = sheet.getRange(1, col)
+
+    var template = JSON.parse(templateCell.getNote())
     delete template[fieldName]
-    cell.setNote(JSON.stringify(template))
+    templateCell.setNote(JSON.stringify(template))
+
+    iterateObjects(sheet, col, function(cell) {
+        var dbDocument = JSON.parse(cell.getNote())
+        delete dbDocument[fieldName]
+        cell.setNote(JSON.stringify(dbDocument))
+    })
 }
 
 //
