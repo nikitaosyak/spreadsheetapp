@@ -8,6 +8,7 @@ let currentLocation = null              // last available row:col of the selecti
 
 let templateImmutables = ['id', 'parents', 'children', 'subjects']
 let entityImmutables = ['template']
+const templateTypes = ['string', 'number', 'link', 'range', 'enum']
 
 const maxPropertyNameLen = 12
 const maxTemplateNameLen = 16
@@ -44,6 +45,7 @@ function drawEntityCreation(output, form, location, template) {
 
     const inputs = {}
     for (let key in template) {
+        console.log(key)
         const caption = createElement('pre', 'horizontal_element', null, {'width': '170px'})
         caption.innerHTML = fillStringTo(maxPropertyNameLen, key)
         switch(template[key]) {
@@ -95,6 +97,24 @@ function drawEntityCreation(output, form, location, template) {
                 layoutElementsHorizontally(form, [caption, spacer, numInput])
                 inputs[key] = {el: numInput, isValid: function(value) { return !Number.isNaN(Number(value)) }}
             break
+            case 'range':
+                caption.innerHTML += '[rng]'
+                const minInput = createInputElement('0', 'horizontal_element', null, {'width': '20px', 'text-align': 'right'})
+                const rangeSpacer = createElement('div', 'horizontal_element', null, {'width': '50px'})
+                const rangePre = createElement('pre', 'horizontal_element', null, {'width': '10px'})
+                rangePre.innerHTML = '-'
+                const maxInput = createInputElement('10', 'horizontal_element', null, {'width': '20px', 'text-align': 'right'})
+                layoutElementsHorizontally(form, [caption, rangeSpacer, minInput, rangePre, maxInput])
+                const valueGetter = {
+                    get value() {
+                        return [Number.parseInt(minInput.value), Number.parseInt(maxInput.value)]
+                    }
+                }
+                inputs[key] = {el: valueGetter, isValid: function(value) { 
+                    if (Number.isNaN(value[0]) || Number.isNaN(value[1])) return false
+                    return value[1] > value[0]
+                }}
+            break
         }
     }
 
@@ -135,6 +155,9 @@ function drawEntityCreation(output, form, location, template) {
                         break
                     case 'number':
                         finalObject[k] = Number(object[k])
+                        break
+                    case 'range':
+                        finalObject[k] = [object[k][0], object[k][1]]
                         break
                     default:
                         finalObject[k] = 'unknown type'
@@ -215,7 +238,7 @@ function drawTemplatePropertyList(output, form, location, properties) {
     const pLabel = createPElement('add property', 'horizontal_element', null,)
     const pNameField = createInputElement('', 'horizontal_element', null, {'width': '85px'})
     pNameField.setAttribute('maxlength', maxPropertyNameLen.toString())
-    const pTypeField = createDropdown(['string', 'number', 'link', 'custom'], 'horizontal_element', null, {'width': '55px'})
+    const pTypeField = createDropdown(templateTypes, 'horizontal_element', null, {'width': '55px'})
     const pCreateBtn = createButtonElement('add', function() {
         if (!allowedPropertyName.test(pNameField.value)) {
             output.innerHTML = 'invalid name'
