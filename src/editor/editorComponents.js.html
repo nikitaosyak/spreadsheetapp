@@ -1,5 +1,22 @@
 <script>
 
+function drawImmutableField(parent, len, name, type) {
+    let pre = createElement('pre', null, parent, {'margin': '0px', 'padding-top': '5px', 'padding-bottom': '5px', 'color': 'gray'})
+    pre.innerHTML = fillStringTo(len, name) + ':' + type
+}
+
+function drawErasableField(parent, len, name, type, eraseCallback) {
+    const pre = createElement('pre', 'horizontal_element', null, {'margin': '0px', 'padding-top': '5px', 'padding-bottom': '5px', 'color': 'black', width: '100px'})
+    pre.innerHTML = fillStringTo(len, name) + ':' + type
+
+    const removeEl = createButtonElement('del', 
+        eraseCallback, 
+        'horizontal_element', null, 
+        {'height': '20px', 'width': '35px', 'margin-left': '10px', 'margin-top': '3px'}
+    )
+    layoutElementsHorizontally(parent, [pre, removeEl])
+}
+
 function initBaker(parent, children) {
     return function(validator, component) {
         layoutElementsHorizontally(parent, children.concat(component.children))
@@ -8,6 +25,21 @@ function initBaker(parent, children) {
             isValid: validator
         }    
     }
+}
+
+function checkInputs(inputs, output) {
+    let canCreate = true
+    const obj = {}
+    for (let k in inputs) {
+        const value = inputs[k].el.value
+        if (!inputs[k].isValid(value)) {
+            canCreate = false
+            output.innerHTML = 'field [' + k + '] is not valid'
+            break
+        }
+        obj[k] = value
+    }
+    return [canCreate, obj]
 }
 
 function inputComponent(text, width, maxLen, textAlign) {

@@ -20,11 +20,11 @@ function typeToAnnotation(template, key) {
     switch(template[key]) {
         case template.id:
         case 'string':
-            return '[stri]'
-        case 'link': return '[link]'
-        case 'number': return '[nmbr]'
-        case 'range': return '[rang]'
-        case 'enum': return '[enum]'
+            return ':string'
+        case 'link': return ':link'
+        case 'number': return ':number'
+        case 'range': return ':rangе'
+        case 'enum': return ':enum'
         default: return '[ERRR]'
     }
 }
