@@ -1,5 +1,19 @@
 <script>
 
+function getDefaultValue(fieldType) {
+    switch(fieldType) {
+        case 'string': 
+        case 'formula':
+            return ''
+        case 'number': return 0
+        case 'range': return [0, 1]
+        case 'link': 
+        case 'enum':
+            return []
+        default: return 'UNKNOWN TYPE'
+    }
+}
+
 const VALIDATOR = {
     alwaysValid: function(value) {return true},
     forRegExp: function(regex) {
@@ -25,6 +39,7 @@ function typeToAnnotation(template, key) {
         case 'number': return ':number'
         case 'range': return ':rangе'
         case 'enum': return ':enum'
+        case 'formula': return ':formula'
         default: return '[ERRR]'
     }
 }

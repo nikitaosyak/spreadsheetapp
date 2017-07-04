@@ -1,5 +1,19 @@
 <script>
 
+function drawPropertyAddition(parent, caption, propLen, availableTypes, create) {
+    createElement('div', null, parent, {'height': '20px'})
+    const pLabel = createPElement(caption, 'horizontal_element', null)
+    const pNameField = createInputElement('', 'horizontal_element', null, {'width': '85px'})
+    pNameField.setAttribute('maxlength', propLen.toString())
+    const pTypeField = createDropdown(availableTypes, 'horizontal_element', null, {'width': '55px'})
+
+    const pCreateBtn = createButtonElement('add', function() {
+        create(pNameField.value.toLowerCase(), pTypeField.value)
+    }, 'horizontal_element', null, {'width': '40px'})
+
+    layoutElementsHorizontally(parent, [pLabel, pNameField, pTypeField, pCreateBtn])
+}
+
 function drawImmutableField(parent, len, name, type) {
     let pre = createElement('pre', null, parent, {'margin': '0px', 'padding-top': '5px', 'padding-bottom': '5px', 'color': 'gray'})
     pre.innerHTML = fillStringTo(len, name) + ':' + type

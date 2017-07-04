@@ -32,7 +32,9 @@ function getSelected() {
 
 function getDefaultValue(fieldType) {
     switch(fieldType) {
-        case 'string': return ''
+        case 'string': 
+        case 'formula':
+            return ''
         case 'number': return 0
         case 'range': return [0, 1]
         case 'link': 
@@ -135,5 +137,24 @@ function createEntity(location, dbDocument) {
     }
     cell.setValue(dbDocument.id)
     cell.setNote(JSON.stringify(dbDocument))
+    cell.activate()
+}
+
+function updateEntity(location, dbDocument) {
+    var sh = SpreadsheetApp.getActive().getActiveSheet()
+    var cell = sh.getRange(location.row, location.col)
+
+    cell.setValue(dbDocument.id)
+    cell.setNote(JSON.stringify(dbDocument))
+    cell.activate()
+}
+
+function eraseEntity(location) {
+    var sh = SpreadsheetApp.getActive().getActiveSheet()
+    var cell = sh.getRange(location.row, location.col)
+    cell.clear()
+    cell.clearNote()
+
+    cell = sh.getRange(location.row-1, location.col)    
     cell.activate()
 }
