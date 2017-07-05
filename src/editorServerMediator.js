@@ -155,6 +155,16 @@ function eraseEntity(location) {
     cell.clear()
     cell.clearNote()
 
-    cell = sh.getRange(location.row-1, location.col)    
-    cell.activate()
+    var current = location.row
+    while(!sh.getRange(current+1, location.col).isBlank()) {
+        var currentCell = sh.getRange(current, location.col)
+        var nextCell = sh.getRange(current+1, location.col)
+
+        currentCell.setValue(nextCell.getValue())
+        currentCell.setNote(nextCell.getNote())
+        nextCell.clear()
+        nextCell.clearNote()
+
+        current += 1
+    }
 }

@@ -21,6 +21,7 @@ const allowedStringValue = /^[a-zA-Z0-9].*$/
 const allowedNumberValue = /^[0-9].*$/
 const allowedPropertyName = /^(?![0-9])[a-zA-Z0-9]{4,}$/
 const allowedTemplateName = /^[A-Za-z]{4,}$/
+const allowedEnumName = /^[A-Z]{3,}$/
 const objectMetaFieldName = /^.*\.type$/
 
 function onServerCallSuccess() {
@@ -60,16 +61,45 @@ function drawEntityEditor(output, form, location, template, dbDocument) {
 
     // 
     // cloning the initial state of the object
-    const initialDocument = {}
+    const initialDocument = JSON.parse(JSON.stringify(dbDocument))
+
+    //
+    // sort template from local
+    const tempProps = []
+    const localProps = []
     for (let v in dbDocument) {
-        initialDocument[v] = dbDocument[v]
+        if (v === 'id') {
+            tempProps.push(v)
+            continue
+        }
+        if (v in template) {
+            tempProps.push(v)
+            continue
+        }
+        localProps.push(v)
+    }
+    const sortedProps = tempProps.concat(localProps)
+
+    let updateBtn
+    let objectChanged = false
+    const onInputChanged = function() {
+        objectChanged = !isObjectsEqual(initialDocument, dbDocument)
+        // console.log(initialDocument, dbDocument, objectChanged)
+
+        if (objectChanged) {
+            updateBtn.style.display = 'block'
+        } else {
+            updateBtn.style.display = 'none'
+        }
     }
 
+    //
+    // draw all the fields
     console.log('drawing ', dbDocument.id, 'of template', template, ': ', dbDocument)
     const inputs = {}
-    for (let pKey in dbDocument) {
+    sortedProps.forEach(function(pKey) {
         // skip meta fields
-        if (objectMetaFieldName.test(pKey)) continue
+        if (objectMetaFieldName.test(pKey)) return
 
         //
         // figure out type
@@ -91,20 +121,34 @@ function drawEntityEditor(output, form, location, template, dbDocument) {
             case 'number':
             case 'formula':
                 const width = { id: 100, string: 100, number: 50, formula: 100 }
-                const regex = { id: VALIDATOR.forRegExp(allowedPropertyName), 
+                const regex = { 
+                    id: VALIDATOR.forRegExp(allowedPropertyName), 
                     string: VALIDATOR.alwaysValid, 
                     number: VALIDATOR.forNumber,
                     formula: VALIDATOR.alwaysValid
                 }
                 const len = { id: maxPropertyNameLen, string: 0, number: 0, formula: 0 }
                 const align = { id: 'left', string: 'left', number: 'right', formula: 'right' }
-
-                inputs[pKey] = bake(regex[pKey], inputComponent(dbDocument[pKey], width[fieldType], len[fieldType], align[fieldType]))
+                let inputChangeStr = function() {
+                    dbDocument[pKey] = inputs[pKey].el.value
+                    onInputChanged()
+                }
+                inputs[pKey] = bake(regex[fieldType], inputComponent(dbDocument[pKey], width[fieldType], len[fieldType], align[fieldType], inputChangeStr))
                 break
             case 'range':
-                inputs[pKey] = bake(VALIDATOR.forRange, rangeComponent(0, 100))
+                let inputChangeRng = function() {
+                    dbDocument[pKey] = inputs[pKey].el.value
+                    onInputChanged()
+                }
+                inputs[pKey] = bake(VALIDATOR.forRange, rangeComponent(0, 100, inputChangeRng))
+                
                 break
             case 'link':
+            case 'enum':
+                const validator = {
+                    'link': VALIDATOR.forRegExp(allowedPropertyName),
+                    'enum': VALIDATOR.forRegExp(allowedEnumName)
+                }
                 var redrawElements = function(subform, length, previousValues) {
                     if (previousValues.length === 0) {
                         for (let i = 0; i < subform.children.length; i++) {
@@ -115,20 +159,33 @@ function drawEntityEditor(output, form, location, template, dbDocument) {
                     removeAllChildren(subform)
                     for (let i = 0; i < length; i++) {
                         const spacer = createElement('div', 'horizontal_element', null, {'width': '170px'})
-                        initBaker(subform, [spacer])(VALIDATOR.forRegExp(allowedPropertyName), inputComponent(previousValues[i] || '', 100, 0, 'left'))
+                        inputs[pKey][i] = initBaker(subform, [spacer])(validator[fieldType], 
+                            inputComponent(previousValues[i] || '', 100, 0, 'left', function() {
+                                dbDocument[pKey][i] = inputs[pKey][i].el.value
+                                onInputChanged()
+                            })
+                        )
                     }    
                 }
 
                 var subform
-                var slider = bake(VALIDATOR.alwaysValid, sliderComponent(0, 10, 1, dbDocument[pKey].length, function() { 
+                var slider = bake(VALIDATOR.alwaysValid, sliderComponent(0, 10, 1, dbDocument[pKey].length, function() {
+                    inputs[pKey] = []
                     redrawElements(subform, slider.el.value, []) 
+                    
+                    dbDocument[pKey] = []
+                    inputs[pKey].forEach(function(input) {
+                        dbDocument[pKey].push(input.el.value)
+                    })
+                    onInputChanged()
                 }))
                 subform = createElement('div', '', form)
+                inputs[pKey] = []
                 redrawElements(subform, slider.el.value, dbDocument[pKey])
                 createElement('div', '', form, {'height': '5px'})
                 break
         }
-    }
+    })
 
     //
     // local property addition
@@ -154,67 +211,57 @@ function drawEntityEditor(output, form, location, template, dbDocument) {
         }
     })
 
+    updateBtn = createButtonElement('update', function() {
+        if (isBlocking()) return
+
+        //
+        // validate correctness of input
+        for (let k in inputs) {
+            console.log(inputs, k)
+            if (typeof inputs[k] === 'object' && 'length' in inputs[k]) {
+                for (let i = 0; i < inputs[k].length; i++) {
+                    const value = inputs[k][i].el.value
+                    if (!inputs[k][i].isValid(value)) {
+                        output.innerHTML = 'field [' + k + '](' + i + ') is not valid'
+                        return
+                    }
+                }
+            } else {
+                const value = inputs[k].el.value
+                if (!inputs[k].isValid(value)) {
+                    output.innerHTML = 'field [' + k + '] is not valid'
+                    return
+                }
+            }
+        }
+
+        //
+        // send update request
+        output.innerHTML = 'will update object ' + dbDocument.id + '..'
+        output.innerHTML = 'requesting update..'
+        selectionRequestCallback = {
+            f: requestEntityUpdate,
+            args: [location, dbDocument]
+        }
+    }, 'horizontal_element', null, {'position': 'absolute', 'left': '10px', 'display': 'none'})
+
+    const removeBtn = createButtonElement('erase', function() {
+        if (isBlocking()) return
+
+        output.innerHTML = 'requesting erase..'
+        selectionRequestCallback = {
+            f: requestEntityErase,
+            args: [location]
+        }
+    }, 'horizontal_element', null, {'position': 'absolute', 'right': '10px'})
+    const botDiv = createElement('div', null, form, {'margin-top': '40px'})
+    botDiv.appendChild(updateBtn)
+    botDiv.appendChild(removeBtn)
+
     //
     // validations
     // const createBtn = createButtonElement('createEntity', function() {
-    //     const object = {}
-    //     //
-    //     // validate correctness of input
-    //     let canCreate = true
-    //     for (let k in inputs) {
-    //         const value = inputs[k].el.value
-    //         if (!inputs[k].isValid(value)) {
-    //             canCreate = false
-    //             output.innerHTML = 'field [' + k + '] is not valid'
-    //             break
-    //         }
-    //         object[k] = value
-    //     }
 
-    //     if (canCreate) {
-    //         output.innerHTML = 'will create object ' + object.id + '..'
-    //         //
-    //         // properly create new object
-    //         console.log('template: ', template)
-    //         console.log('meta object: ', object)
-    //         const finalObject = {}
-    //         for (let k in object) {
-    //             const fieldType = template[k]
-    //             switch(fieldType) {
-    //                 case template.id:
-    //                 case 'string':    
-    //                     finalObject[k] = object[k]
-    //                     break
-    //                 case 'link':
-    //                     finalObject[k] = []
-    //                     for (let i = 0; i < Number.parseInt(object[k]); i++) {
-    //                         finalObject[k].push('')
-    //                     }
-    //                     break
-    //                 case 'number':
-    //                     finalObject[k] = Number(object[k])
-    //                     break
-    //                 case 'range':
-    //                     finalObject[k] = [object[k][0], object[k][1]]
-    //                     break
-    //                 case 'enum':
-    //                     finalObject[k] = ['', '']
-    //                     break
-    //                 default:
-    //                     finalObject[k] = 'unknown type'
-    //                     output.innerHTML = 'field [' + k + '] has unknown type'
-    //                     canCreate = false
-    //                     break
-    //             }
-    //         }
-    //         if (canCreate) {
-    //             output.innerHTML = 'requesting create..'
-    //             selectionRequestCallback = {
-    //                 f: requestEntityCreation,
-    //                 args: [location, finalObject]
-    //             }
-    //         }
-    //     }
     // }, null, form, {'margin-top': '40px'})
 }
 

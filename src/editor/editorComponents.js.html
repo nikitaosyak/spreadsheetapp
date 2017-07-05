@@ -56,7 +56,7 @@ function checkInputs(inputs, output) {
     return [canCreate, obj]
 }
 
-function inputComponent(text, width, maxLen, textAlign) {
+function inputComponent(text, width, maxLen, textAlign, onChange) {
     const children = []
     const leftover = 100 - width
     if (leftover > 0) {
@@ -68,6 +68,9 @@ function inputComponent(text, width, maxLen, textAlign) {
         'width': width.toString() + 'px',
         'text-align': textAlign
     })
+
+    input.addEventListener('change', function() { onChange && onChange() })
+    input.addEventListener('input', function() { onChange && onChange() })
 
     if (maxLen > 0) {
         input.setAttribute('maxlength', maxLen.toString())
@@ -123,12 +126,17 @@ function sliderComponent(min, max, step, value, onChange) {
     }
 }
 
-function rangeComponent(min, max) {
+function rangeComponent(min, max, onChange) {
     const minInput = createInputElement('0', 'horizontal_element', null, {'width': '20px', 'text-align': 'right'})
     const rangeSpacer = createElement('div', 'horizontal_element', null, {'width': '38px'})
     const rangePre = createElement('pre', 'horizontal_element', null, {'width': '10px'})
     rangePre.innerHTML = '-'
     const maxInput = createInputElement('10', 'horizontal_element', null, {'width': '20px', 'text-align': 'right'})
+
+    minInput.addEventListener('change', function() { onChange&&onChange() })
+    minInput.addEventListener('input', function() { onChange && onChange() })
+    maxInput.addEventListener('change', function() { onChange&&onChange() })
+    maxInput.addEventListener('input', function() { onChange && onChange() })
 
     return {
         valueGetter: {

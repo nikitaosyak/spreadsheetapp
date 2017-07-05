@@ -1,5 +1,53 @@
 <script>
 
+//
+// find out if any of the object's insides is different
+function isObjectsEqual(obj1, obj2) {
+    const type1 = typeof obj1
+    const type2 = typeof obj2
+    if (type1 === type2) {
+        switch (type1) {
+            case 'object':
+                let arrayCount = 0
+                if ('length' in obj1) arrayCount += 1
+                if ('length' in obj2) arrayCount += 1
+                if (arrayCount === 0) {
+                    // compare objects
+                    const keys1 = []; for (const k1 in obj1) { keys1.push(k1) }
+                    const keys2 = []; for (const k2 in obj2) { keys2.push(k2) }
+                    if (isObjectsEqual(keys1, keys2)) {
+                        for (let key in obj1) {
+                            if (!isObjectsEqual(obj1[key], obj2[key])) {
+                                return false
+                            }
+                        }
+                        return true
+                    }
+                    return false
+                } else if (arrayCount === 2) {
+                    // compare arrays
+                    // console.log('comparing arrays: len count: ', obj1, obj2, obj1.length !== obj2.length)
+                    if (obj1.length !== obj2.length) return false
+                    for (let i = 0; i < obj1.length; i++) {
+                        if (!isObjectsEqual(obj1[i], obj2[i])) {
+                            return false
+                        }
+                    }
+                    return true
+                } 
+                // comparing array and object
+                return false
+            case 'number':
+            case 'string':
+            case 'boolean':
+                // console.log('comparing', obj1, obj2, obj1 === obj2)
+                return obj1 === obj2
+        }
+    } else {
+        return false
+    }
+}
+
 function getDefaultValue(fieldType) {
     switch(fieldType) {
         case 'string': 
