@@ -127,6 +127,17 @@ function removeEntityTemplateField(col, fieldName) {
     })
 }
 
+function listOfValuesInColumn(col, fieldName) {
+    var sh = SpreadsheetApp.getActive().getActiveSheet()
+    var values = []
+    iterateObjects(sh, col, function(cell) {
+        var dbDocument = JSON.parse(cell.getNote())
+        values.push(dbDocument[fieldName])
+    })
+    sheet().log(values)
+    return values
+}
+
 //
 // Entity methods
 //
@@ -148,6 +159,19 @@ function createEntity(location, dbDocument) {
 function updateEntity(location, dbDocument) {
     var sh = SpreadsheetApp.getActive().getActiveSheet()
     var cell = sh.getRange(location.row, location.col)
+
+    // lazy validate different shit here
+    var originalValue = JSON.parse(cell.getNote())
+    if (location.col > 1) {
+        if (originalValue.category !== dbDocument.category) {
+            var cat = dbDocument.category
+            if (cat) {
+                if (listOfValuesInColumn(2, 'id').indexOf(cat) === -1) {
+                    throw 'cannot find matching category for ' + cat
+                }
+            }
+        }
+    }
 
     cell.setValue(dbDocument.id)
     cell.setNote(JSON.stringify(dbDocument))

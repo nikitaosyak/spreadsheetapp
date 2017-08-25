@@ -34,6 +34,13 @@ function onServerCallSuccess() {
     makeRequest()    
 }
 
+function onServerCallFailure(error) {
+    document.getElementById('output').innerHTML = error
+
+    blockingRequestRunning = false
+    makeRequest()
+}
+
 const isBlocking = (function(output) {
     return function() {
         if (blockingRequestRunning || selectionRequestCallback != null) {
@@ -49,6 +56,7 @@ function drawEntityEditor(output, form, location, template, dbDocument) {
         console.log('will update', dbDocument.id, 'at', location)
         google.script.run
             .withSuccessHandler(onServerCallSuccess)
+            .withFailureHandler(onServerCallFailure)
             .updateEntity(location, dbDocument)
     }
 
