@@ -103,6 +103,33 @@ function sheet() {
 
             _main.getRange(1, 2, 1, 50).setFontWeight('bold')
 
+            // fill template columns if needed
+            var templates = _main.getRange(1, 2, 1, 5)
+            var vals = templates.getNotes()
+            var valsFlat = []
+            for (var i in vals) {
+                for (var j in vals[i]) {
+                    valsFlat.push(vals[i][j])
+                }
+            }
+            valsFlat = valsFlat.filter(function(v) { return v.length > 0})
+            if (valsFlat.length === 0) {
+                self.log('can inject template columns:')
+                createEntityTemplate({row: 1, col: 2}, 'category', false, false, false)
+                _main.setColumnWidth(2, 170)
+                createEntityTemplate({row: 1, col: 3}, 'statistic', true, false, false)
+                _main.setColumnWidth(3, 170)
+                createEntityTemplate({row: 1, col: 4}, 'state', true, true, false)
+                _main.setColumnWidth(4, 170)
+                createEntityTemplate({row: 1, col: 5}, 'activity', false, true, false)
+                _main.setColumnWidth(5, 170)
+                createEntityTemplate({row: 1, col: 6}, 'modifier', false, false, true)
+                _main.setColumnWidth(6, 170)
+            } else {
+                self.log(valsFlat.length)
+                self.log('cannot inject template columns')
+            }
+
             // append entityEditor
             showEntityEditor()
         },

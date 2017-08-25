@@ -10,13 +10,15 @@ let selectionRequestRunning = false     // is cell selection update request runn
 let selectionRequestCallback = null     // UI callback in the editor form
 let currentLocation = null              // last available row:col of the selection
 
-let templateImmutables = ['id', 'parents', 'children', 'subjects']
+let immutableTemplateObjects = ['category', 'statistic', 'state', 'activity', 'modifier']
+let templateImmutables = ['id', 'parents', 'children', 'subjects', 'meta', 'category']
 let entityImmutables = ['template']
 const templateTypes = ['link', 'formula']
 const objectTypes = ['string', 'number', 'link', 'range', 'enum', 'formula']
 
-const maxPropertyNameLen = 12
+const maxPropertyNameLen = 10
 const maxTemplateNameLen = 16
+const allowedCategoryName = /^[A-Z]{4,}$/
 const allowedStringValue = /^[a-zA-Z0-9].*$/
 const allowedNumberValue = /^[0-9].*$/
 const allowedPropertyName = /^(?![0-9])[a-zA-Z0-9]{4,}$/
@@ -111,9 +113,29 @@ function drawEntityEditor(output, form, location, template, dbDocument) {
             }
         }
 
-        const caption = createElement('pre', 'horizontal_element', null, {'width': '170px', 'color': (pKey in template) ? 'gray' : 'black'})
+        const caption = createElement('pre', 'horizontal_element', null, {'width': '150px', 'color': (pKey in template) ? 'gray' : 'black'})
         caption.innerHTML = fillStringTo(maxPropertyNameLen, pKey) + ':' + fieldType//typeToAnnotation(template, fieldType)
-        const bake = initBaker(form, [caption])
+        let bake
+        if (localProps.indexOf(pKey) === -1) {
+            bake = initBaker(form, [caption])
+        } else {
+            const removeEl = createButtonElement('del', 
+                function(){
+                    if (isBlocking()) return
+                    //
+                    // send update request
+                    delete dbDocument[pKey]
+                    output.innerHTML = 'will remove field ' + pKey + '..'
+                    selectionRequestCallback = {
+                        f: requestEntityUpdate,
+                        args: [location, dbDocument]
+                    }
+                }, 
+                'horizontal_element', null, 
+                {'height': '20px', 'width': '30px', 'margin-left': '0px', 'margin-top': '3px'}
+            )
+            bake = initBaker(form, [removeEl, caption])
+        }
 
         switch (fieldType) {
             case 'id':
@@ -135,13 +157,23 @@ function drawEntityEditor(output, form, location, template, dbDocument) {
                 }
                 inputs[pKey] = bake(regex[fieldType], inputComponent(dbDocument[pKey], width[fieldType], len[fieldType], align[fieldType], inputChangeStr))
                 break
+            case 'meta':
+                bake(undefined, undefined)
+
+                var subform = createElement('div', '', form)
+                var localBake = initBaker(subform, [])
+                inputs[pKey] = localBake(VALIDATOR.alwaysValid, bigInputComponent(dbDocument[pKey], function() {
+                    dbDocument[pKey] = inputs[pKey].el.value
+                    onInputChanged()
+                }))
+                createElement('div', '', form, {'height': '5px'})
+                break
             case 'range':
                 let inputChangeRng = function() {
                     dbDocument[pKey] = inputs[pKey].el.value
                     onInputChanged()
                 }
                 inputs[pKey] = bake(VALIDATOR.forRange, rangeComponent(0, 100, inputChangeRng))
-                
                 break
             case 'link':
             case 'enum':
@@ -158,7 +190,7 @@ function drawEntityEditor(output, form, location, template, dbDocument) {
                     }
                     removeAllChildren(subform)
                     for (let i = 0; i < length; i++) {
-                        const spacer = createElement('div', 'horizontal_element', null, {'width': '170px'})
+                        const spacer = createElement('div', 'horizontal_element', null, {'width': '150px'})
                         inputs[pKey][i] = initBaker(subform, [spacer])(validator[fieldType], 
                             inputComponent(previousValues[i] || '', 100, 0, 'left', function() {
                                 dbDocument[pKey][i] = inputs[pKey][i].el.value
@@ -169,7 +201,7 @@ function drawEntityEditor(output, form, location, template, dbDocument) {
                 }
 
                 var subform
-                var slider = bake(VALIDATOR.alwaysValid, sliderComponent(0, 10, 1, dbDocument[pKey].length, function() {
+                var slider = bake(VALIDATOR.alwaysValid, sliderComponent(0, 30, 1, dbDocument[pKey].length, function() {
                     inputs[pKey] = []
                     redrawElements(subform, slider.el.value, []) 
                     
@@ -189,27 +221,29 @@ function drawEntityEditor(output, form, location, template, dbDocument) {
 
     //
     // local property addition
-    drawPropertyAddition(form, 'local prop', maxPropertyNameLen, objectTypes, function(nameValue, typeValue) {
-        if (!allowedPropertyName.test(nameValue)) {
-            output.innerHTML = 'invalid name'
-            return
-        }
-        if (nameValue in initialDocument) {
-            output.innerHTML = 'cannot add matching name'
-            return
-        }
+    if (template.id !== 'category') {
+        drawPropertyAddition(form, 'local prop', maxPropertyNameLen, objectTypes, function(nameValue, typeValue) {
+            if (!allowedPropertyName.test(nameValue)) {
+                output.innerHTML = 'invalid name'
+                return
+            }
+            if (nameValue in initialDocument) {
+                output.innerHTML = 'cannot add matching name'
+                return
+            }
 
-        if (isBlocking()) return
+            if (isBlocking()) return
 
-        initialDocument[nameValue] = getDefaultValue(typeValue)
-        initialDocument[nameValue + '.type'] = typeValue
+            initialDocument[nameValue] = getDefaultValue(typeValue)
+            initialDocument[nameValue + '.type'] = typeValue
 
-        output.innerHTML = 'requesting create..'
-        selectionRequestCallback = {
-            f: requestEntityUpdate,
-            args: [location, initialDocument]
-        }
-    })
+            output.innerHTML = 'requesting create..'
+            selectionRequestCallback = {
+                f: requestEntityUpdate,
+                args: [location, initialDocument]
+            }
+        })
+    }
 
     updateBtn = createButtonElement('update', function() {
         if (isBlocking()) return
@@ -257,12 +291,6 @@ function drawEntityEditor(output, form, location, template, dbDocument) {
     const botDiv = createElement('div', null, form, {'margin-top': '40px'})
     botDiv.appendChild(updateBtn)
     botDiv.appendChild(removeBtn)
-
-    //
-    // validations
-    // const createBtn = createButtonElement('createEntity', function() {
-
-    // }, null, form, {'margin-top': '40px'})
 }
 
 function drawEntityCreation(output, form, location, template) {
@@ -283,13 +311,14 @@ function drawEntityCreation(output, form, location, template) {
         
         switch(template[key]) {
             case template.id:
+                var validator = template.id === 'category' ? VALIDATOR.forRegExp(allowedCategoryName) : VALIDATOR.forRegExp(allowedPropertyName)
                 inputs[key] = bake(
-                    VALIDATOR.forRegExp(allowedPropertyName), 
+                    validator, 
                     inputComponent('', 100, maxPropertyNameLen, 'left')
                 )
             break
             case 'link':
-                inputs[key] = bake(VALIDATOR.alwaysValid, sliderComponent(0, 10, 1, 2))
+                inputs[key] = bake(VALIDATOR.alwaysValid, sliderComponent(0, 30, 1, 2))
             break
             default:
                 drawImmutableField(form, maxPropertyNameLen, key, template[key])
@@ -321,6 +350,11 @@ function drawEntityCreation(output, form, location, template) {
                             finalObject[k].push('')
                         }
                         break
+                    case 'string':
+                    case 'meta':
+                        object[k] = ''
+                        finalObject[k] = ''
+                        break
                     default:
                         finalObject[k] = 'unknown type'
                         output.innerHTML = 'field [' + k + '] has unknown type'
@@ -331,7 +365,11 @@ function drawEntityCreation(output, form, location, template) {
             if (canCreate) {
                 for (let key in template) {
                     if (key in object) continue
-                    finalObject[key] = template[key]
+                    if (key === 'meta') {
+                        finalObject[key] = ''
+                    } else {
+                        finalObject[key] = template[key]
+                    }
                 }
                 output.innerHTML = 'requesting create..'
                 selectionRequestCallback = {
@@ -394,36 +432,42 @@ function drawTemplatePropertyList(output, form, location, properties) {
     }
 
     //
-    // addition of the properties
-    drawPropertyAddition(form, 'new prop', maxPropertyNameLen, templateTypes, function(nameValue, typeValue) {
-        if (!allowedPropertyName.test(nameValue)) {
-            output.innerHTML = 'invalid name'
-            return  
-        }
-        if (nameValue in properties) {
-            output.innerHTML = 'cannot add matching name'
-            return
-        }
+    // addition of the properties (except category template)
+    if (properties.id !== 'category') {
+        drawPropertyAddition(form, 'new prop', maxPropertyNameLen, templateTypes, function(nameValue, typeValue) {
+            if (!allowedPropertyName.test(nameValue)) {
+                output.innerHTML = 'invalid name'
+                return  
+            }
+            if (nameValue in properties) {
+                output.innerHTML = 'cannot add matching name'
+                return
+            }
 
-        if (isBlocking()) return
+            if (isBlocking()) return
 
-        output.innerHTML = 'requesting create..'
-        selectionRequestCallback = {
-            f: requestFieldAdd, 
-            args: [location, nameValue, typeValue]
-        }
-    })
-
-    const removeBtn = createButtonElement('erase', function() {
-        if (isBlocking()) return
-        
-        output.innerHTML = 'requesting erase..'
-        selectionRequestCallback = {
-            f: requestErase, 
-            args: [location]
-        }
-        removeBtn.disabled = true
-    }, null, form, {'margin-top': '40px', 'position': 'relative', 'left': '230px'})
+            output.innerHTML = 'requesting create..'
+            selectionRequestCallback = {
+                f: requestFieldAdd, 
+                args: [location, nameValue, typeValue]
+            }
+        })
+    }
+    
+    //
+    // erasing of the template (except immutable)
+    // if (immutableTemplateObjects.indexOf(properties.id) === -1) {
+        const removeBtn = createButtonElement('erase', function() {
+            if (isBlocking()) return
+            
+            output.innerHTML = 'requesting erase..'
+            selectionRequestCallback = {
+                f: requestErase, 
+                args: [location]
+            }
+            removeBtn.disabled = true
+        }, null, form, {'margin-top': '40px', 'position': 'relative', 'left': '230px'})    
+    // }
 }
 
 function drawTemplateCreation(output, form, location) {

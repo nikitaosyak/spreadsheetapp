@@ -33,11 +33,15 @@ function drawErasableField(parent, len, name, type, eraseCallback) {
 
 function initBaker(parent, children) {
     return function(validator, component) {
-        layoutElementsHorizontally(parent, children.concat(component.children))
-        return {
-            el: component.valueGetter,
-            isValid: validator
-        }    
+        if (component) {
+            layoutElementsHorizontally(parent, children.concat(component.children))
+            return {
+                el: component.valueGetter,
+                isValid: validator
+            }
+        } else {
+            layoutElementsHorizontally(parent, children)
+        }
     }
 }
 
@@ -88,7 +92,7 @@ function inputComponent(text, width, maxLen, textAlign, onChange) {
 function sliderComponent(min, max, step, value, onChange) {
     const valueLabel = createElement('pre', 'horizontal_element', null, {'width': '20px'})
     valueLabel.innerHTML = value.toString()
-    const slider = createElement('input', 'horizontal_element', null, {'width': '50px'})
+    const slider = createElement('input', 'horizontal_element', null, {'width': '48px'})
     slider.setAttribute('type', 'range')
     slider.setAttribute('min', min.toString())
     slider.setAttribute('max', max.toString())
@@ -147,6 +151,21 @@ function rangeComponent(min, max, onChange) {
         get children() {
             return [rangeSpacer, minInput, rangePre, maxInput]
         }
+    }
+}
+
+function bigInputComponent(text, onChange) {
+    const input = createElement('textarea', null, null)
+    input.cols="36"
+    input.rows="3"
+    input.innerHTML = text
+
+    input.addEventListener('input', function() { onChange && onChange() })
+    input.addEventListener('change', function() { onChange && onChange() })
+
+    return {
+        valueGetter: {get value() { return input.value }},
+        get children() { return [input] }
     }
 }
 

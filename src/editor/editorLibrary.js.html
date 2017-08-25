@@ -70,10 +70,10 @@ const VALIDATOR = {
         }
     },
     forNumber: function(value) {
-        return !Number.isNan(Number(value))
+        return !isNaN(Number(value))
     },
     forRange: function(value) {
-        if (Number.isNaN(value[0]) || Number.isNaN(value[1])) return false
+        if (isNaN(value[0]) || isNaN(value[1])) return false
         return value[1] > value[0]
     }
 }

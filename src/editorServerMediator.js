@@ -64,6 +64,11 @@ function createEntityTemplate(location, id, children, parents, special) {
     cell.setValue(id)
 
     var doc = { id: id }
+    if (id !== 'category') {
+        doc.category = 'string'
+    }
+    doc.meta = 'meta'
+
     if (children) {
         doc.children = 'link'
     }
