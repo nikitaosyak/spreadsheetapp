@@ -138,6 +138,14 @@ function listOfValuesInColumn(col, fieldName) {
     return values
 }
 
+function equalArrayValues(a, b) {
+    if (a.length !== b.length) return false
+    for (var i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return false
+    }
+    return true
+}
+
 //
 // Entity methods
 //
@@ -167,7 +175,49 @@ function updateEntity(location, dbDocument) {
             var cat = dbDocument.category
             if (cat) {
                 if (listOfValuesInColumn(2, 'id').indexOf(cat) === -1) {
-                    throw 'cannot find matching category for ' + cat
+                    throw 'unknown category "' + cat + '"'
+                }
+            }
+        }
+
+        var i
+        if (dbDocument.children) {
+            if (!equalArrayValues(originalValue.children, dbDocument.children)) {
+                for (i = 0; i < dbDocument.children.length; i++) {
+                    var child = dbDocument.children[i]
+                    if (child) {
+                        if (listOfValuesInColumn(location.col + 1, 'id').indexOf(child) === -1) {
+                            throw 'unkonwn child "' + child + '"'
+                        }
+                    }
+                }
+            }
+        }
+
+        if (dbDocument.parents) {
+            if (!equalArrayValues(originalValue.parents, dbDocument.parents)) {
+                for (i = 0; i < dbDocument.parents.length; i++) {
+                    var parent = dbDocument.parents[i]
+                    if (parent) {
+                        if (listOfValuesInColumn(location.col - 1, 'id').indexOf(parent) === -1) {
+                            throw 'unkonwn parent "' + parent + '"'
+                        }
+                    }
+                }
+            }
+        }
+
+        if (dbDocument.subjects) {
+            if (!equalArrayValues(originalValue.subjects, dbDocument.subjects)) {
+                for (i = 0; i < dbDocument.subjects.length; i++) {
+                    var subject = dbDocument.subjects[i]
+                    if (subject) {
+                        if (listOfValuesInColumn(location.col - 1, 'id').indexOf(subject) === -1 &&
+                            listOfValuesInColumn(location.col - 2, 'id').indexOf(subject) === -1 &&
+                            listOfValuesInColumn(location.col - 3, 'id').indexOf(subject) === -1) {
+                            throw 'unkonwn subject "' + subject + '"'
+                        }
+                    }
                 }
             }
         }

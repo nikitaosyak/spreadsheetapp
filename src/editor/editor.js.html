@@ -373,7 +373,7 @@ function drawEntityCreation(output, form, location, template) {
             if (canCreate) {
                 for (let key in template) {
                     if (key in object) continue
-                    if (key === 'meta') {
+                    if (key === 'meta' || key === 'category') {
                         finalObject[key] = ''
                     } else {
                         finalObject[key] = template[key]
