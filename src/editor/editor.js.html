@@ -14,7 +14,7 @@ let immutableTemplateObjects = ['category', 'statistic', 'state', 'activity', 'm
 let templateImmutables = ['id', 'parents', 'children', 'subjects', 'meta', 'category']
 let entityImmutables = ['template']
 const templateTypes = ['link', 'formula']
-const objectTypes = ['string', 'number', 'link', 'range', 'enum', 'formula']
+const objectTypes = ['string', 'number', 'link', 'range', 'enum', 'formula', 'color']
 
 const maxPropertyNameLen = 10
 const maxTemplateNameLen = 16
@@ -223,6 +223,12 @@ function drawEntityEditor(output, form, location, template, dbDocument) {
                 inputs[pKey] = []
                 redrawElements(subform, slider.el.value, dbDocument[pKey])
                 createElement('div', '', form, {'height': '5px'})
+                break
+            case 'color':
+                inputs[pKey] = bake(VALIDATOR.alwaysValid, colorInputComponent(dbDocument[pKey], function() {
+                    dbDocument[pKey] = inputs[pKey].el.value
+                    onInputChanged()
+                }))
                 break
         }
     })

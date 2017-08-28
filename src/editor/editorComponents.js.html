@@ -169,4 +169,18 @@ function bigInputComponent(text, onChange) {
     }
 }
 
+function colorInputComponent(v, onChange) {
+    const input = createElement('input', null, null)
+    input.type = 'color'
+    input.value = v
+    input.name = 'palette'
+
+    input.addEventListener('change', function() { onChange && onChange() })
+
+    return {
+        valueGetter: {get value() { return input.value }},
+        get children() { return [input] }
+    }
+}
+
 </script>
