@@ -133,6 +133,7 @@ function drawEntityEditor(output, form, location, template, dbDocument) {
                     //
                     // send update request
                     delete dbDocument[pKey]
+                    delete dbDocument[pKey + '.type']
                     output.innerHTML = 'will remove field ' + pKey + '..'
                     selectionRequestCallback = {
                         f: requestEntityUpdate,

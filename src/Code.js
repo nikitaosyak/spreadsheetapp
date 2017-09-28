@@ -1,3 +1,7 @@
+function onInstall(e) {
+    sheet().initialize()
+}
+
 function onOpen(e) {
     sheet().initialize()
 }
